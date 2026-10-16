@@ -10,9 +10,12 @@ def create_app():
     
     app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY", "nexus-default-secret-key")
 
-    # Restrictive CORS configuration
+    # CORS configuration
     frontend_origin = os.environ.get("FRONTEND_ORIGIN", "*")
-    CORS(app, origins=[frontend_origin, "http://localhost:5173", "http://127.0.0.1:5173"], supports_credentials=True)
+    if frontend_origin == "*":
+        CORS(app, resources={r"/*": {"origins": "*"}})
+    else:
+        CORS(app, origins=[frontend_origin, "http://localhost:5173", "http://127.0.0.1:5173"], supports_credentials=True)
 
     # Root welcome route
     @app.route("/", methods=["GET"])
