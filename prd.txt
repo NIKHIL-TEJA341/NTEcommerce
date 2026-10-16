@@ -1,0 +1,942 @@
+# PRODUCT REQUIREMENTS DOCUMENT (PRD)
+## Modern E-Commerce Web Application
+
+**Version:** 1.0  
+**Status:** Initial implementation specification  
+**Target market:** India  
+**Primary objective:** Portfolio-quality full-stack application with a path to real commerce  
+**Budget target:** ₹0 during initial development, using eligible free tiers
+
+---
+
+## 1. Product Overview
+
+### 1.1 Product vision
+
+Build a modern, responsive, full-stack e-commerce website where customers can discover products, search and filter the catalog, register, manage a shopping cart, complete checkout, pay securely through Razorpay, and track their orders.
+
+The application will include an administrative dashboard for product management, inventory, order processing, and sales monitoring.
+
+The application must be designed as a real full-stack system, not merely a frontend demonstration. Payment processing, authorization, inventory management, and order status changes must be handled securely.
+
+### 1.2 Primary objectives
+
+- Create a professional, attractive and mobile-responsive shopping experience.
+- Demonstrate proficiency in React, TypeScript, Tailwind CSS, Python Flask, PostgreSQL and API integration.
+- Implement authentication and database access securely.
+- Integrate Razorpay in test mode before enabling real payments.
+- Deploy the frontend through Vercel and the backend through Render.
+- Keep development costs at ₹0 wherever free tiers permit.
+- Build an architecture that can be upgraded for production use.
+
+### 1.3 Target users
+
+**Customers**
+- Browse, search and purchase products.
+- Manage their accounts, addresses and shopping carts.
+- View orders and payment status.
+- Submit product reviews after purchasing.
+
+**Administrators**
+- Manage the catalog, pricing, stock and product images.
+- View and process orders.
+- Manage order statuses, refunds and cancellations.
+- Monitor sales and inventory.
+
+**Project owner/developer**
+- Manage deployment, configuration, database security and integrations.
+- Monitor application errors and troubleshoot failed transactions.
+
+### 1.4 Product scope
+
+The product category will be configurable through the database. The first implementation will support a single-store catalog with categories, product variants where needed, and configurable product images.
+
+Multi-vendor selling, multiple independent stores, international tax handling and warehouse networks are outside the initial MVP.
+
+---
+
+## 2. Technology Stack
+
+| Layer | Technology | Responsibility |
+|---|---|---|
+| Frontend | React | User interface and components |
+| Language | TypeScript | Type safety and maintainable code |
+| Styling | Tailwind CSS | Responsive layouts and design system |
+| Routing | React Router | Client-side navigation |
+| Server-state management | TanStack Query | API fetching, caching and mutations |
+| Lightweight client state | React Context or Zustand | Cart UI and shared client state where appropriate |
+| Database | Supabase PostgreSQL | Persistent application data |
+| Authentication | Supabase Auth | Registration, login and sessions |
+| File storage | Supabase Storage | Product images |
+| Backend | Python + Flask | Business logic and REST API |
+| Database access | Supabase Python client or server-side PostgreSQL access | Backend data operations |
+| Payment gateway | Razorpay | Payment checkout and transaction processing |
+| API communication | REST + JSON | Frontend/backend integration |
+| Frontend hosting | Vercel | React application deployment |
+| Backend hosting | Render | Flask API deployment |
+| Version control | Git + GitHub | Source code and deployment integration |
+| Testing | Vitest, React Testing Library, pytest | Frontend and backend testing |
+
+**Architecture decision:** Supabase will provide managed database, authentication and storage services. Flask will be the application backend for trusted business operations. We will not introduce FastAPI or another backend framework.
+
+The React frontend will call Flask for protected operations such as checkout creation, payment verification, refunds and administrative mutations. Supabase client access will be limited to operations permitted by authentication and Row Level Security policies.
+
+---
+
+## 3. Functional Requirements
+
+### 3.1 Home page
+
+The home page must include:
+
+- Brand logo and navigation bar.
+- Search bar and product category navigation.
+- Hero banner and featured collections.
+- Featured, popular or recently added products.
+- Product cards showing image, name, price and availability.
+- Links to product details and categories.
+- Footer containing contact information, policies and support links.
+- Responsive navigation for mobile and desktop.
+
+The home page should be configurable rather than hardcoding every product and category.
+
+### 3.2 Product catalog
+
+Customers must be able to:
+
+- Browse all active products.
+- Browse products by category.
+- Search by product name and relevant descriptive fields.
+- Filter by category, price range, availability and supported attributes.
+- Sort by price, newest and other implemented sorting options.
+- Navigate through paginated results.
+- View an appropriate empty state when no results match.
+
+Only active products should appear in the public catalog. Out-of-stock products may remain visible but must be clearly marked unavailable for purchase.
+
+### 3.3 Product details
+
+Each product page must display:
+
+- Product name and image gallery.
+- Description and category.
+- Current price and, where applicable, original price.
+- Stock availability.
+- Supported variants such as size or color.
+- Quantity selector.
+- Add-to-cart action.
+- Ratings and approved reviews, when available.
+- Related products where appropriate.
+
+The backend must validate the requested product, variant, price and stock during checkout. Client-provided prices must never be trusted.
+
+### 3.4 Customer authentication
+
+Use Supabase Auth for:
+
+- Email/password registration.
+- Login and logout.
+- Email verification where configured.
+- Password recovery.
+- Session persistence and expiration handling.
+- Protected customer pages.
+
+Customer profile information will be stored separately in a `profiles` table linked to the authenticated user's ID.
+
+The frontend must display clear messages for invalid credentials, unverified accounts and authentication failures.
+
+### 3.5 Shopping cart
+
+Customers must be able to:
+
+- Add products and variants to the cart.
+- Change item quantities.
+- Remove items.
+- View subtotal and estimated order total.
+- Continue shopping.
+- Proceed to checkout.
+
+For authenticated customers, the cart can persist in the database. A guest cart can initially use local storage, with a merge process after login if implemented.
+
+The cart must be revalidated against current prices and inventory before an order is created. A cart is not a reservation of inventory.
+
+### 3.6 Checkout and addresses
+
+The checkout process must include:
+
+- Delivery contact name and phone number.
+- Delivery address, city, state and postal code.
+- Order summary and quantity breakdown.
+- Server-calculated subtotal and final payable amount.
+- Shipping charges or free-shipping eligibility, if configured.
+- Applicable discounts, if enabled.
+- Final confirmation before payment.
+
+The initial MVP may use a simple shipping configuration. Complex shipping integrations are out of scope.
+
+Address information must be accessible only to the authorized customer and the backend operations that require it.
+
+### 3.7 Payments through Razorpay
+
+The initial implementation will use Razorpay test mode.
+
+Required features:
+
+- Create a pending order on the backend.
+- Calculate the payable amount using trusted product and shipping data.
+- Create a Razorpay order through the server-side API.
+- Open the supported Razorpay Checkout interface.
+- Receive the checkout response.
+- Verify the payment signature on the backend.
+- Process signed webhook events.
+- Record provider references and payment statuses.
+- Handle failed, cancelled, delayed and duplicate payment events.
+- Show the customer a clear result and the corresponding order status.
+- Support refunds through an authorized backend workflow.
+
+**Payment security requirements**
+
+1. Razorpay secret keys must remain on the server.
+2. The browser must never determine whether an order is paid.
+3. A success-page redirect is not proof of payment.
+4. Payment signatures and webhook authenticity must be verified.
+5. Duplicate webhooks must not duplicate orders, inventory deductions or refunds.
+6. The backend must verify the amount, currency, provider order reference and associated internal order.
+7. Raw card numbers and CVV values must never be stored in the application's database.
+
+Official integration reference: https://razorpay.com/docs/
+
+Live payments may only be enabled after merchant onboarding, account approval and bank settlement configuration.
+
+### 3.8 Order history and tracking
+
+Customers must be able to:
+
+- View their orders.
+- Open individual order details.
+- See products, quantities, delivery details and final amounts.
+- View payment and fulfillment statuses.
+- See cancellation or refund information where applicable.
+
+Initial order statuses:
+
+- `pending_payment`
+- `paid`
+- `processing`
+- `shipped`
+- `delivered`
+- `cancelled`
+- `payment_failed`
+- `refund_pending`
+- `refunded`
+
+These statuses must have defined, validated transitions. For example, an order must not become `delivered` merely because a customer sends that value from the browser.
+
+Actual shipping-provider tracking integration is not required for the MVP. Administrators may update fulfillment status manually.
+
+### 3.9 Admin dashboard
+
+Admin functionality must include:
+
+**Product management**
+- Create, edit, activate and deactivate products.
+- Manage categories, descriptions, prices and images.
+- Manage product variants and stock.
+- Validate required fields before saving.
+
+**Order management**
+- View orders and order items.
+- Filter by status and date.
+- View payment references and payment status.
+- Update permitted fulfillment statuses.
+- Initiate refunds through a secure workflow.
+
+**Inventory**
+- View available stock.
+- Update inventory with validation.
+- Prevent overselling through safe stock updates.
+- Record inventory adjustments where practical.
+
+**Dashboard analytics**
+- Total orders.
+- Gross sales from confirmed payments.
+- Number of customers.
+- Best-selling products.
+- Low-stock products.
+- Pending and failed payment counts.
+
+Analytics must be based on trusted database records, not values calculated only in the browser.
+
+### 3.10 Reviews and ratings
+
+Customers may submit a rating and review for eligible products.
+
+Requirements:
+- Validate rating range and review content.
+- Associate reviews with authenticated users.
+- Prevent duplicate reviews where the policy permits only one review per customer per product.
+- Allow administrators to moderate inappropriate reviews.
+- Calculate public average ratings from approved reviews.
+
+Reviews can be deferred until after the main purchasing flow works.
+
+### 3.11 User experience requirements
+
+- Responsive layouts for mobile, tablet and desktop.
+- Consistent spacing, typography and reusable components.
+- Accessible color contrast, keyboard navigation and visible focus states.
+- Loading indicators and skeletons where useful.
+- Clear success, error and empty states.
+- Confirmation dialogs for destructive administrative actions.
+- Proper form validation and useful error messages.
+- Consistent navigation and browser refresh behavior on nested routes.
+
+The visual direction should be modern and premium, with subtle animations and restrained hover effects. Visual effects must not compromise performance, readability or accessibility.
+
+---
+
+## 4. Database Design
+
+### 4.1 Core tables
+
+**`profiles`**
+- `id` — UUID matching the Supabase Auth user ID.
+- `full_name`
+- `phone`
+- `created_at`
+- `updated_at`
+
+**`user_roles`**
+- `user_id`
+- `role`
+- `created_at`
+
+Roles will be controlled by trusted administrative operations. Customers must not be allowed to promote themselves to administrator.
+
+**`categories`**
+- `id`
+- `name`
+- `slug`
+- `description`
+- `is_active`
+- `created_at`
+
+**`products`**
+- `id`
+- `category_id`
+- `name`
+- `slug`
+- `description`
+- `price`
+- `currency`
+- `stock_quantity`
+- `image_url` or image reference
+- `is_active`
+- `created_at`
+- `updated_at`
+
+Prices must use a precise numeric representation, and all prices must be interpreted in the configured currency.
+
+**`product_variants`** — when required
+- `id`
+- `product_id`
+- `sku`
+- `attributes` such as size or color
+- `price_override`, if supported
+- `stock_quantity`
+- `is_active`
+
+**`cart_items`**
+- `id`
+- `user_id`
+- `product_id`
+- `variant_id`, if applicable
+- `quantity`
+- `created_at`
+- `updated_at`
+
+**`addresses`**
+- `id`
+- `user_id`
+- `recipient_name`
+- `phone`
+- `address_line_1`
+- `address_line_2`
+- `city`
+- `state`
+- `postal_code`
+- `created_at`
+
+**`orders`**
+- `id`
+- `user_id`
+- `order_number`
+- `status`
+- `currency`
+- `subtotal`
+- `shipping_amount`
+- `discount_amount`
+- `total_amount`
+- `shipping_address_snapshot`
+- `created_at`
+- `updated_at`
+
+The address snapshot preserves the delivery details used for that order even if the customer later edits their saved address.
+
+**`order_items`**
+- `id`
+- `order_id`
+- `product_id`
+- `variant_id`, if applicable
+- `product_name_snapshot`
+- `sku_snapshot`, if applicable
+- `unit_price`
+- `quantity`
+- `line_total`
+
+The item price and name must remain available for historical orders if the original product changes or is deleted.
+
+**`payments`**
+- `id`
+- `order_id`
+- `provider`
+- `provider_order_id`
+- `provider_payment_id`
+- `amount`
+- `currency`
+- `status`
+- `verified_at`
+- `created_at`
+- `updated_at`
+
+**`webhook_events`**
+- `id`
+- `provider`
+- `provider_event_id`
+- `event_type`
+- `processing_status`
+- `received_at`
+- `processed_at`
+
+Use a unique constraint on the provider and event identifier to prevent duplicate event processing.
+
+**`reviews`**
+- `id`
+- `user_id`
+- `product_id`
+- `rating`
+- `review_text`
+- `moderation_status`
+- `created_at`
+
+### 4.2 Database integrity
+
+- Use foreign keys for relationships.
+- Add appropriate unique constraints and indexes.
+- Validate quantities and non-negative prices.
+- Store timestamps consistently.
+- Use transactions or equivalent atomic operations for multi-step changes.
+- Ensure order totals equal the sum of the appropriate line items, shipping and discounts.
+- Use atomic inventory updates to prevent overselling.
+- Never use the frontend as the authority for prices, roles or payment status.
+
+### 4.3 Row Level Security
+
+Enable RLS on exposed tables and define policies based on authenticated identity and authorization.
+
+Examples:
+- Customers may read and update only their own permitted profile fields.
+- Customers may read only their own addresses, carts and orders.
+- Customers may not directly set their own payment status.
+- Customers may not modify trusted order totals.
+- Public users may read only active product and category data.
+- Administrative operations require a trusted server-side role check.
+
+Supabase service-role or secret keys bypass RLS and must never be included in frontend code.
+
+Reference: https://supabase.com/docs/guides/database/postgres/row-level-security
+
+---
+
+## 5. Backend API Requirements
+
+The Flask application will expose a versioned REST API under `/api/v1`.
+
+Representative endpoints:
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/v1/health` | Health check |
+| GET | `/api/v1/products` | List and filter products |
+| GET | `/api/v1/products/<id>` | Product details |
+| GET | `/api/v1/categories` | List active categories |
+| POST | `/api/v1/checkout` | Validate cart and create pending order |
+| POST | `/api/v1/payments/verify` | Verify payment response |
+| POST | `/api/v1/webhooks/razorpay` | Receive provider webhooks |
+| GET | `/api/v1/orders` | List the current customer's orders |
+| GET | `/api/v1/orders/<id>` | Get an authorized order |
+| POST | `/api/v1/orders/<id>/cancel` | Request eligible cancellation |
+| GET | `/api/v1/admin/orders` | Admin order listing |
+| POST | `/api/v1/admin/products` | Create a product |
+| PATCH | `/api/v1/admin/products/<id>` | Update a product |
+| PATCH | `/api/v1/admin/orders/<id>/status` | Update permitted fulfillment status |
+| POST | `/api/v1/admin/orders/<id>/refund` | Initiate an authorized refund |
+
+The final API may be adjusted during implementation.
+
+### Backend requirements
+
+- Validate all incoming requests.
+- Verify authentication tokens for protected endpoints.
+- Check user roles for administrative endpoints.
+- Recalculate prices and totals on the server.
+- Use structured error responses and appropriate HTTP status codes.
+- Apply sensible rate limits to sensitive endpoints.
+- Avoid logging secrets, authentication tokens or sensitive payment data.
+- Use database transactions and idempotency controls for payment-sensitive operations.
+- Keep configuration in environment variables.
+- Run Flask through a production WSGI server, such as Gunicorn, in deployment.
+
+---
+
+## 6. End-to-End System Flow
+
+### 6.1 Browsing and authentication
+
+1. A visitor opens the Vercel URL.
+2. React retrieves active products from the application API or appropriately secured Supabase queries.
+3. The customer searches, filters and opens product details.
+4. The customer registers or logs in using Supabase Auth.
+5. The frontend uses the authenticated session for permitted customer operations.
+
+### 6.2 Checkout and payment
+
+1. The customer submits their cart and delivery details.
+2. The Flask backend verifies the customer's identity.
+3. The backend retrieves current product prices and stock.
+4. The backend calculates the total amount and creates a pending order with an item and address snapshot.
+5. The backend creates a Razorpay order using server-side credentials.
+6. The frontend opens Razorpay Checkout.
+7. The customer completes or abandons the payment.
+8. If a checkout response is received, the frontend sends the relevant identifiers and signature to Flask for verification.
+9. Razorpay may also send a signed webhook event.
+10. The backend verifies the payment against the provider and the internal order.
+11. The backend processes successful payment confirmation idempotently and updates the order and inventory consistently.
+12. The customer sees the resulting order status.
+
+The application must handle the case where the payment succeeds but the browser closes before the customer returns. The verified webhook and reconciliation workflow must be able to update the order.
+
+A failed or abandoned payment must not be treated as a successful order. Inventory reservations, if implemented, must expire or be released safely.
+
+### 6.3 Order fulfillment
+
+1. An administrator opens the order dashboard.
+2. The administrator reviews paid orders.
+3. The administrator marks an order as processing, shipped or delivered as appropriate.
+4. The customer sees updated status in their account.
+5. Eligible cancellation or refund requests follow controlled backend workflows.
+
+---
+
+## 7. Security and Reliability Requirements
+
+Security is a release requirement, not a future enhancement.
+
+- Use HTTPS for deployed traffic.
+- Keep all secret keys in Render environment variables or the appropriate server-side secret store.
+- Use only the Supabase publishable/anon key in the browser, together with correct RLS policies.
+- Never expose Supabase service-role/secret keys or Razorpay key secrets.
+- Verify Supabase-issued access tokens on protected backend requests.
+- Enforce admin permissions server-side.
+- Validate payment signatures and webhook authenticity.
+- Use idempotency for webhook processing and other payment-sensitive actions.
+- Prevent arbitrary client updates to order totals, inventory and payment statuses.
+- Configure restrictive CORS origins for the deployed frontend.
+- Avoid storing sensitive payment credentials or raw card details.
+- Sanitize and validate user input.
+- Protect file uploads by validating file types and size.
+- Keep production debug mode disabled.
+- Use dependency management and keep critical dependencies updated.
+- Implement useful logs and generic user-facing errors without leaking secrets.
+- Test permissions with multiple customer accounts and an administrator account.
+
+### Operational reliability
+
+For a real store, the project must additionally have:
+- A backup and recovery strategy.
+- Monitoring for failed checkout and webhook processing.
+- A way to investigate payments whose status is unclear.
+- Reconciliation between provider payments and internal orders.
+- A clear refund and customer-support process.
+- A plan for inventory restoration after failed or refunded orders.
+
+---
+
+## 8. Non-Functional Requirements
+
+**Performance**
+- Use pagination for product and order lists.
+- Optimize product images.
+- Avoid unnecessary frontend re-renders and repeated requests.
+- Use database indexes for common search and filter patterns.
+- Handle slow API responses gracefully.
+
+**Accessibility**
+- Use semantic HTML.
+- Ensure forms have labels.
+- Support keyboard navigation.
+- Maintain readable contrast and visible focus indicators.
+
+**Maintainability**
+- Organize frontend features into reusable components and modules.
+- Separate Flask routes, services, validation and database access.
+- Use shared TypeScript types where appropriate.
+- Maintain clear environment configuration and setup instructions.
+
+**Scalability**
+- Keep the application stateless where practical.
+- Store durable data in Supabase rather than the Render local filesystem.
+- Keep payment processing isolated from UI components.
+- Use atomic database operations and idempotency for critical workflows.
+
+**Compatibility**
+- Support current major desktop and mobile browsers.
+- Test the interface at mobile, tablet and desktop widths.
+
+---
+
+## 9. Development Plan and Milestones
+
+### Phase 1 — Foundation and storefront
+
+Deliverables:
+- GitHub repository and project structure.
+- React, TypeScript and Tailwind setup.
+- Routing, layout and design system.
+- Home page, product listing, product details and category pages.
+- Responsive navigation and reusable product cards.
+- Sample catalog data.
+
+**Exit criteria:** The storefront is responsive and navigation works correctly using sample data.
+
+### Phase 2 — Supabase and real catalog
+
+Deliverables:
+- Supabase project.
+- Database schema and migrations.
+- RLS policies.
+- Product and category queries.
+- Product image storage.
+- Seed data for development.
+
+**Exit criteria:** The storefront displays database-backed products and unauthorized data access is blocked.
+
+### Phase 3 — Authentication and cart
+
+Deliverables:
+- Registration, login and logout.
+- Customer profile.
+- Protected account pages.
+- Cart operations.
+- Address management.
+- Cart persistence and checkout validation.
+
+**Exit criteria:** Customers can use separate accounts without accessing each other's private data.
+
+### Phase 4 — Flask backend
+
+Deliverables:
+- Flask application structure.
+- REST endpoints.
+- Authentication-token verification.
+- Role-based authorization.
+- Price and inventory validation.
+- Order creation and order-item snapshots.
+- Error handling and automated tests.
+
+**Exit criteria:** Checkout creates correct pending orders and client-supplied prices cannot override trusted prices.
+
+### Phase 5 — Razorpay integration
+
+Deliverables:
+- Razorpay test credentials.
+- Server-side payment order creation.
+- Checkout integration.
+- Signature verification.
+- Webhook endpoint and idempotency.
+- Payment status updates.
+- Failed, abandoned, delayed and duplicate-event handling.
+
+**Exit criteria:** Successful, failed and repeated test events produce consistent database state.
+
+### Phase 6 — Admin dashboard
+
+Deliverables:
+- Protected admin access.
+- Product and category management.
+- Image management.
+- Inventory controls.
+- Order management.
+- Sales summaries.
+
+**Exit criteria:** Authorized administrators can manage the catalog and orders, while ordinary customers cannot access administrative operations.
+
+### Phase 7 — Testing and hardening
+
+Deliverables:
+- Frontend component tests.
+- Backend unit and integration tests.
+- Database permission tests.
+- Payment-flow tests.
+- Mobile responsiveness checks.
+- Accessibility and performance checks.
+- Security checklist and setup documentation.
+
+**Exit criteria:** No known critical authorization or payment correctness issues remain.
+
+### Phase 8 — Deployment
+
+Deliverables:
+- Production frontend on Vercel.
+- Flask backend on Render.
+- Supabase production configuration.
+- Environment variables and allowed origins.
+- Production build and smoke tests.
+- Deployment documentation.
+- Final project README and screenshots.
+
+**Exit criteria:** The public URL loads, the API responds, products load, authentication works, and test-mode checkout can be demonstrated end to end.
+
+---
+
+## 10. Deployment Plan
+
+### 10.1 Repository structure
+
+Use a single GitHub repository initially:
+
+```text
+ecommerce-platform/
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── features/
+│   │   ├── hooks/
+│   │   ├── services/
+│   │   ├── types/
+│   │   └── routes/
+│   ├── public/
+│   ├── package.json
+│   └── vite.config.ts
+├── backend/
+│   ├── app/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   ├── auth/
+│   │   ├── database/
+│   │   └── validators/
+│   ├── tests/
+│   ├── app.py
+│   └── requirements.txt
+├── database/
+│   ├── migrations/
+│   └── seed.sql
+├── .gitignore
+└── README.md
+```
+
+This is the intended logical structure; it may evolve as implementation progresses.
+
+### 10.2 Frontend deployment — Vercel
+
+1. Push the repository to GitHub.
+2. Import the repository into Vercel.
+3. Set the frontend root directory to `frontend`.
+4. Configure the build command and output directory for the selected Vite setup.
+5. Add the public environment variable for the deployed Flask API URL.
+6. Add only the Supabase publishable key and project URL to the frontend configuration if needed.
+7. Deploy and verify the build.
+8. Test direct navigation and browser refresh on nested routes.
+9. Configure the production API URL and any required CORS origins.
+
+### 10.3 Backend deployment — Render
+
+1. Create a Render Web Service linked to the repository.
+2. Set the root directory to `backend`.
+3. Use `pip install -r requirements.txt` as the build command.
+4. Use `gunicorn app:app` as the start command if `app.py` exports the Flask instance as `app`.
+5. Configure required secret environment variables.
+6. Bind the application through the production server to Render's expected port.
+7. Configure `/api/v1/health` as a health-check endpoint.
+8. Deploy and verify logs.
+9. Configure CORS to permit the deployed frontend origin.
+10. Verify that no secret values are present in public frontend bundles or logs.
+
+Reference: https://render.com/docs/deploy-flask
+
+### 10.4 Supabase configuration
+
+1. Create the Supabase project.
+2. Apply schema migrations.
+3. Configure RLS policies.
+4. Set up product image storage and access policies.
+5. Configure authentication settings and redirect URLs.
+6. Set backend environment variables.
+7. Add sample catalog data.
+8. Test customer and administrator access.
+9. Confirm backups and recovery expectations before real business use.
+
+### 10.5 Razorpay configuration
+
+1. Create a Razorpay account.
+2. Configure test-mode API credentials.
+3. Add the key ID to the appropriate frontend configuration and keep the key secret on the backend.
+4. Register the backend webhook URL.
+5. Configure the webhook secret in Render.
+6. Test successful, failed and duplicate payment events.
+7. Complete merchant onboarding and required verification before live transactions.
+8. Configure live credentials only after reviewing security and deployment readiness.
+9. Verify the linked bank account and settlement process.
+
+### 10.6 Environment variables
+
+Frontend variables:
+
+```text
+VITE_API_BASE_URL=
+VITE_SUPABASE_URL=
+VITE_SUPABASE_PUBLISHABLE_KEY=
+VITE_RAZORPAY_KEY_ID=
+```
+
+Backend variables:
+
+```text
+FLASK_SECRET_KEY=
+SUPABASE_URL=
+SUPABASE_SECRET_KEY=
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
+FRONTEND_ORIGIN=
+```
+
+The exact Supabase server-side credential will depend on the selected access method. Any privileged credential must remain server-side. Never commit actual secrets to GitHub.
+
+### 10.7 Free-tier budget
+
+Initial target: **₹0**, provided usage stays within the current free-plan limits.
+
+- React, TypeScript, Tailwind and Flask: free open-source libraries.
+- Supabase: Free plan initially.
+- Vercel: Hobby plan for the personal portfolio project.
+- Render: Free Web Service for the Flask API.
+- Razorpay: test mode for development.
+- Custom domain: optional and potentially paid.
+
+Free hosting is suitable for a demonstration, but not automatically suitable for production commerce. Render free services can sleep after inactivity, and free plans have resource and reliability limits. Check current provider policies before deployment.
+
+References:
+- Render free services: https://render.com/docs/free
+- Vercel plans: https://vercel.com/docs/plans
+- Supabase billing: https://supabase.com/docs/guides/platform/billing-on-supabase
+
+---
+
+## 11. Testing Strategy
+
+### Functional tests
+- Register, log in and log out.
+- Search and filter products.
+- Add, update and remove cart items.
+- Validate delivery forms.
+- Create and view orders.
+- Manage products and inventory as an administrator.
+- Verify correct order totals.
+
+### Security tests
+- Attempt to access another customer's order.
+- Attempt to edit an order total from the browser.
+- Attempt to change a customer role to administrator.
+- Attempt unauthorized inventory updates.
+- Verify that server-side secrets are not exposed.
+- Test invalid payment signatures and forged webhook payloads.
+
+### Payment tests
+- Successful test payment.
+- Failed payment.
+- Customer closes checkout.
+- Duplicate webhook delivery.
+- Delayed payment notification.
+- Payment succeeds but browser return fails.
+- Amount mismatch.
+- Repeated verification requests.
+- Refund success and refund failure.
+- Inventory consistency during concurrent checkout attempts.
+
+### Deployment tests
+- Frontend loads from the Vercel URL.
+- Backend health check returns successfully.
+- API requests use HTTPS.
+- CORS accepts the intended frontend origin.
+- Supabase authentication redirect works.
+- Direct page refresh works.
+- Product images load.
+- Checkout functions after the Render service wakes from sleep.
+
+---
+
+## 12. Acceptance Criteria
+
+The MVP is complete when all of the following are satisfied:
+
+1. Visitors can browse, search and filter the product catalog.
+2. Customers can register, log in and manage their accounts.
+3. Customers can add products to a cart and proceed to checkout.
+4. The backend calculates prices and validates stock.
+5. Orders and order items persist correctly in Supabase.
+6. Razorpay test payments can be initiated and verified.
+7. Webhooks update order/payment state safely and idempotently.
+8. Customers can view only their own orders and addresses.
+9. Administrators can manage products, inventory and order fulfillment.
+10. The application works on mobile and desktop.
+11. The frontend and backend are deployed and communicate correctly.
+12. No privileged keys are exposed to the browser.
+13. The README documents local setup, environment variables, testing and deployment.
+14. Known free-tier limitations and the distinction between test payments and real payments are documented.
+
+---
+
+## 13. Out of Scope for the First Release
+
+To keep the MVP manageable, the following are deferred:
+
+- Multi-vendor marketplace.
+- Native Android or iOS applications.
+- AI shopping assistant or recommendation engine.
+- Complex coupon campaigns and loyalty points.
+- Automated shipping-provider integrations.
+- Multiple warehouses.
+- International currencies and complex tax calculations.
+- Advanced fraud-scoring systems.
+- Large-scale analytics and business intelligence.
+
+These can be introduced after the core catalog, checkout and order lifecycle are stable.
+
+---
+
+## 14. Final Implementation Principles
+
+1. Build in phases and verify each phase before adding complexity.
+2. Use TypeScript types and reusable React components.
+3. Keep Flask business logic separate from route handlers.
+4. Treat Supabase RLS and backend authorization as mandatory.
+5. Treat payment confirmation as a verified server-side operation.
+6. Keep the initial deployment on free tiers where practical.
+7. Do not enable live payments until onboarding, security and operational readiness are verified.
+8. Keep the product category and branding configurable.
+9. Prioritize a reliable shopping experience over adding many optional features.
+10. Maintain a clear GitHub history, tests and deployment documentation.
+
+**Final deliverable:** A responsive, database-backed e-commerce website with customer authentication, product discovery, cart and checkout, Razorpay payment integration, order management, an administrative dashboard, and a deployed frontend/backend architecture using Vercel, Render and Supabase.
