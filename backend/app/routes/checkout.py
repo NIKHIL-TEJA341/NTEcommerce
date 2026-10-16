@@ -16,7 +16,7 @@ def create_checkout():
     if not items:
         return jsonify({"error": "Cart items are required"}), 400
 
-    if not shipping_address or not shipping_address.get("recipientName") or not shipping_address.get("phone"):
+    if not shipping_address or not (shipping_address.get("recipientName") or shipping_address.get("fullName")) or not shipping_address.get("phone"):
         return jsonify({"error": "Valid shipping address and phone number are required"}), 400
 
     # 1. Server-side cart validation and price calculation (never trust client amounts!)
@@ -51,14 +51,20 @@ def create_checkout():
                 internal_order_id = order_res.data[0]["id"]
                 # Insert order items snapshot
                 for v_item in validated_items:
-                    client.table("order_items").insert({
-                        "order_id": internal_order_id,
-                        "product_id": v_item["productId"],
-                        "product_name_snapshot": v_item["productNameSnapshot"],
-                        "unit_price": v_item["unitPrice"],
-                        "quantity": v_item["quantity"],
-                        "line_total": v_item["lineTotal"]
-                    }).execute()
+                    try:
+                        p_id = v_item["productId"]
+                        # Only insert valid UUIDs into PostgreSQL foreign key column
+                        db_pid = p_id if (isinstance(p_id, str) and len(p_id) == 36 and "-" in p_id) else None
+                        client.table("order_items").insert({
+                            "order_id": internal_order_id,
+                            "product_id": db_pid,
+                            "product_name_snapshot": v_item["productNameSnapshot"],
+                            "unit_price": v_item["unitPrice"],
+                            "quantity": v_item["quantity"],
+                            "line_total": v_item["lineTotal"]
+                        }).execute()
+                    except Exception as item_err:
+                        print(f"Warning: could not insert order item: {item_err}")
         except Exception as e:
             print(f"Warning: Could not persist pending order to DB: {e}")
 

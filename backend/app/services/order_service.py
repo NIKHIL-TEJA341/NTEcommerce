@@ -39,7 +39,7 @@ class OrderService:
         subtotal = 0.0
 
         for item in items:
-            product_id = item.get("productId")
+            product_id = item.get("productId") or item.get("id")
             quantity = int(item.get("quantity", 1))
 
             if quantity <= 0:
@@ -47,17 +47,20 @@ class OrderService:
 
             # Fetch trusted product from Supabase or catalog
             trusted_product = None
-            if client:
-                res = client.table("products").select("*").eq("id", product_id).execute()
-                if res.data and len(res.data) > 0:
-                    db_p = res.data[0]
-                    trusted_product = {
-                        "id": db_p["id"],
-                        "name": db_p["name"],
-                        "price": float(db_p["price"]),
-                        "stock": int(db_p["stock_quantity"]),
-                        "imageUrl": db_p.get("image_url")
-                    }
+            if client and product_id:
+                try:
+                    res = client.table("products").select("*").eq("id", product_id).execute()
+                    if res.data and len(res.data) > 0:
+                        db_p = res.data[0]
+                        trusted_product = {
+                            "id": db_p["id"],
+                            "name": db_p["name"],
+                            "price": float(db_p["price"]),
+                            "stock": int(db_p["stock_quantity"]),
+                            "imageUrl": db_p.get("image_url")
+                        }
+                except Exception:
+                    trusted_product = None
 
             if not trusted_product and product_id in DEFAULT_CATALOG:
                 trusted_product = DEFAULT_CATALOG[product_id]
