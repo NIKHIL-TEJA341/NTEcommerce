@@ -48,3 +48,6 @@ def create_app():
     app.register_blueprint(admin_bp, url_prefix="/api/v1")
 
     return app
+
+# Expose app instance directly so `gunicorn app:app` finds it inside the `app` package
+app = create_app()
