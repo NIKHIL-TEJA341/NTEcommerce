@@ -6,7 +6,6 @@ import {
   Clock,
   CheckCircle2,
   Filter,
-  Plus,
   RefreshCw,
 } from 'lucide-react';
 import { mockProducts } from '../data/mockCatalog';
