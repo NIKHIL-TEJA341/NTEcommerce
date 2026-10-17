@@ -153,16 +153,14 @@ export const useAuthStore = create<AuthState>((set) => ({
 
             // Sync user profile to profiles table in Supabase
             try {
-              supabase
+              await supabase
                 .from('profiles')
                 .upsert({
                   id: newSession.user.id,
                   full_name: formattedUser.fullName,
                   avatar_url: formattedUser.avatarUrl,
                   updated_at: new Date().toISOString(),
-                })
-                .then(() => {})
-                .catch(() => {});
+                });
             } catch {
               // Non-blocking
             }

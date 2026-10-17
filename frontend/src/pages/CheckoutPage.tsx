@@ -170,13 +170,21 @@ export const CheckoutPage: React.FC = () => {
           token
         );
       } catch (err: any) {
-        console.warn('Backend checkout session creation fallback:', err);
+        setErrorMessage(err?.message || 'Failed to initialize secure checkout with server. Please ensure backend is active.');
+        setIsProcessing(false);
+        return;
       }
 
-      // If backend order creation succeeded, use verified server order and keys
-      const activeOrderNumber = checkoutSession?.orderNumber || simulatedOrderNumber;
-      const razorpayOrderId = checkoutSession?.razorpayOrderId;
-      const razorpayKey = checkoutSession?.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TofFz9UTVgKv8F';
+      if (!checkoutSession || !checkoutSession.razorpayOrderId) {
+        setErrorMessage('Server failed to initialize Razorpay order. Please try again.');
+        setIsProcessing(false);
+        return;
+      }
+
+      // Use verified server order details and keys
+      const activeOrderNumber = checkoutSession.orderNumber;
+      const razorpayOrderId = checkoutSession.razorpayOrderId;
+      const razorpayKey = checkoutSession.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TofFz9UTVgKv8F';
 
       // Load Razorpay Checkout.js dynamically
       const loadRazorpayScript = (): Promise<boolean> => {
@@ -198,8 +206,8 @@ export const CheckoutPage: React.FC = () => {
       if (loaded && (window as any).Razorpay) {
         const options: any = {
           key: razorpayKey,
-          amount: checkoutSession?.totalAmount ? Math.round(checkoutSession.totalAmount * 100) : Math.round(totalAmount * 100),
-          currency: checkoutSession?.currency || 'INR',
+          amount: Math.round(checkoutSession.totalAmount * 100),
+          currency: checkoutSession.currency || 'INR',
           name: 'NEXUS Studio Gear',
           description: `Checkout Order ${activeOrderNumber}`,
           image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=200&q=80',
@@ -208,24 +216,30 @@ export const CheckoutPage: React.FC = () => {
             contact: address.phone,
             email: customerEmail,
           },
-
           theme: {
             color: '#6366f1',
           },
+          order_id: razorpayOrderId,
           handler: async (response: any) => {
-            if (response.razorpay_payment_id && razorpayOrderId) {
-              try {
-                await api.verifyPayment({
-                  orderNumber: activeOrderNumber,
-                  razorpayOrderId: response.razorpay_order_id || razorpayOrderId,
-                  razorpayPaymentId: response.razorpay_payment_id,
-                  razorpaySignature: response.razorpay_signature || '',
-                });
-              } catch {
-                // Non-blocking signature sync
+            setIsProcessing(true);
+            try {
+              const verifyRes = await api.verifyPayment({
+                orderNumber: activeOrderNumber,
+                razorpayOrderId: response.razorpay_order_id || razorpayOrderId,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature || '',
+              });
+
+              if (verifyRes && verifyRes.success) {
+                saveOrderAndRedirect(activeOrderNumber, response.razorpay_payment_id);
+              } else {
+                setErrorMessage(verifyRes?.error || 'Payment verification failed server-side. Please check your transaction.');
+                setIsProcessing(false);
               }
+            } catch (verErr: any) {
+              setErrorMessage(verErr?.message || 'Network error verifying payment with server.');
+              setIsProcessing(false);
             }
-            saveOrderAndRedirect(activeOrderNumber, response.razorpay_payment_id || 'pay_test_verified');
           },
           modal: {
             ondismiss: () => {
@@ -234,11 +248,6 @@ export const CheckoutPage: React.FC = () => {
           },
         };
 
-        // Attach server-verified order ID if generated (required by modern Razorpay accounts)
-        if (razorpayOrderId && !razorpayOrderId.startsWith('order_simulated')) {
-          options.order_id = razorpayOrderId;
-        }
-
         const rzp = new (window as any).Razorpay(options);
         rzp.on('payment.failed', (resp: any) => {
           setErrorMessage(resp.error?.description || 'Payment was unsuccessful. Please retry.');
@@ -246,9 +255,8 @@ export const CheckoutPage: React.FC = () => {
         });
         rzp.open();
       } else {
-        // Fallback simulation if offline
-        await new Promise((resolve) => setTimeout(resolve, 1200));
-        saveOrderAndRedirect(simulatedOrderNumber, 'pay_test_fallback');
+        setErrorMessage('Failed to load Razorpay payment SDK. Please check your connection and retry.');
+        setIsProcessing(false);
       }
     } catch {
       setErrorMessage('Payment process encountered an error. Please try again.');

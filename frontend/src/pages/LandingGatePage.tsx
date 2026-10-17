@@ -5,10 +5,8 @@ import {
   Package,
   Zap,
   ArrowRight,
-  Headphones,
   Sparkles,
   CreditCard,
-  CheckCircle2,
   AlertCircle,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
