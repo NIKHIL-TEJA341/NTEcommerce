@@ -53,6 +53,7 @@ export interface CartItem {
 export interface Address {
   id?: string;
   recipientName: string;
+  email?: string;
   phone: string;
   addressLine1: string;
   addressLine2?: string;
@@ -90,6 +91,7 @@ export interface Order {
   id: string;
   orderNumber: string;
   userId?: string;
+  customerEmail?: string;
   status: OrderStatus;
   currency: string;
   subtotal: number;
@@ -101,4 +103,14 @@ export interface Order {
   createdAt: string;
 }
 
+export interface CustomerUser {
+  id: string;
+  email: string;
+  fullName: string;
+  avatarUrl?: string;
+  provider: 'google';
+  emailVerified: boolean;
+}
+
 export const APP_NAME = 'NEXUS';
+

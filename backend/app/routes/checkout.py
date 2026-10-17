@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify
 from app.services.order_service import OrderService
 from app.services.razorpay_service import RazorpayService
 from app.database.db import get_supabase_client
+from app.auth.token_verifier import verify_token_from_header
 
 checkout_bp = Blueprint("checkout", __name__)
 razorpay_service = RazorpayService()
@@ -11,13 +12,34 @@ razorpay_service = RazorpayService()
 def create_checkout():
     data = request.get_json() or {}
     items = data.get("items", [])
-    shipping_address = data.get("shippingAddress")
+    shipping_address = data.get("shippingAddress") or {}
 
     if not items:
         return jsonify({"error": "Cart items are required"}), 400
 
     if not shipping_address or not (shipping_address.get("recipientName") or shipping_address.get("fullName")) or not shipping_address.get("phone"):
         return jsonify({"error": "Valid shipping address and phone number are required"}), 400
+
+    # 0. Identify customer from Bearer token or payload
+    user = verify_token_from_header()
+    user_id = None
+    if user:
+        user_id = user.id if hasattr(user, "id") else user.get("id")
+    elif data.get("userId"):
+        cand_id = data.get("userId")
+        if isinstance(cand_id, str) and len(cand_id) == 36 and "-" in cand_id:
+            user_id = cand_id
+
+    customer_email = None
+    if user:
+        customer_email = (user.email if hasattr(user, "email") else user.get("email") or "").lower()
+    elif data.get("customerEmail"):
+        customer_email = data.get("customerEmail").strip().lower()
+    elif shipping_address.get("email"):
+        customer_email = shipping_address.get("email").strip().lower()
+
+    if customer_email:
+        shipping_address["email"] = customer_email
 
     # 1. Server-side cart validation and price calculation (never trust client amounts!)
     subtotal, shipping, total, validated_items, err = OrderService.validate_and_calculate_cart(items)
@@ -38,6 +60,7 @@ def create_checkout():
         try:
             order_data = {
                 "order_number": order_number,
+                "user_id": user_id,
                 "status": "pending_payment",
                 "currency": "INR",
                 "subtotal": subtotal,
@@ -46,6 +69,7 @@ def create_checkout():
                 "total_amount": total,
                 "shipping_address_snapshot": shipping_address,
             }
+
             order_res = client.table("orders").insert(order_data).execute()
             if order_res.data and len(order_res.data) > 0:
                 internal_order_id = order_res.data[0]["id"]

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   ShieldCheck,
@@ -10,19 +10,22 @@ import {
   ShoppingBag,
 } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
+import { useAuthStore } from '../store/authStore';
 import { formatPrice } from '../utils/format';
 import type { Address, Order } from '../types';
 import { api } from '../services/api';
 
-const SHIPPING_THRESHOLD = 1999;
-const STANDARD_SHIPPING_FEE = 149;
+const SHIPPING_THRESHOLD = 0;
+const STANDARD_SHIPPING_FEE = 0;
 
 export const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const { items, getSubtotal, clearCart } = useCartStore();
+  const { user, token, isAuthenticated, openAuthModal } = useAuthStore();
 
   const [address, setAddress] = useState<Address>({
-    recipientName: '',
+    recipientName: user?.fullName || '',
+    email: user?.email || '',
     phone: '',
     addressLine1: '',
     addressLine2: '',
@@ -30,6 +33,17 @@ export const CheckoutPage: React.FC = () => {
     state: '',
     postalCode: '',
   });
+
+  useEffect(() => {
+    if (user) {
+      setAddress((prev) => ({
+        ...prev,
+        recipientName: prev.recipientName || user.fullName,
+        email: user.email,
+      }));
+    }
+  }, [user]);
+
 
   const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -91,18 +105,24 @@ export const CheckoutPage: React.FC = () => {
     setIsProcessing(true);
 
     const simulatedOrderNumber = `NX-${Date.now().toString().slice(-6)}`;
+    const customerEmail = user?.email || address.email;
 
     const saveOrderAndRedirect = (orderNum: string, paymentId: string) => {
       const newOrder: Order = {
         id: `ord_${Date.now()}`,
         orderNumber: orderNum,
+        userId: user?.id,
+        customerEmail,
         status: 'paid',
         currency: 'INR',
         subtotal,
         shippingAmount,
         discountAmount,
         totalAmount,
-        shippingAddressSnapshot: address,
+        shippingAddressSnapshot: {
+          ...address,
+          email: customerEmail,
+        },
         items: items.map((item) => ({
           id: `item_${Math.random()}`,
           orderId: `ord_${Date.now()}`,
@@ -137,10 +157,18 @@ export const CheckoutPage: React.FC = () => {
       // 1. Create server-side order on backend via Razorpay Orders API
       let checkoutSession: any = null;
       try {
-        checkoutSession = await api.createCheckout({
-          items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-          shippingAddress: address,
-        });
+        checkoutSession = await api.createCheckout(
+          {
+            items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+            shippingAddress: {
+              ...address,
+              email: customerEmail,
+            },
+            userId: user?.id,
+            customerEmail,
+          },
+          token
+        );
       } catch (err: any) {
         console.warn('Backend checkout session creation fallback:', err);
       }
@@ -178,7 +206,9 @@ export const CheckoutPage: React.FC = () => {
           prefill: {
             name: address.recipientName,
             contact: address.phone,
+            email: customerEmail,
           },
+
           theme: {
             color: '#6366f1',
           },
@@ -251,6 +281,71 @@ export const CheckoutPage: React.FC = () => {
         </div>
       )}
 
+      {/* Google Account Status Banner */}
+      {isAuthenticated && user ? (
+        <div className="mb-8 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-indigo-950/40 via-slate-900 to-indigo-950/40 border border-indigo-500/30 flex flex-wrap items-center justify-between gap-4 shadow-lg">
+          <div className="flex items-center gap-3">
+            <img
+              src={user.avatarUrl}
+              alt={user.fullName}
+              className="w-10 h-10 rounded-xl object-cover ring-2 ring-indigo-500/40"
+            />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-white">{user.fullName}</span>
+                <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-semibold">
+                  <ShieldCheck className="w-3 h-3" />
+                  <span>Google Account Linked</span>
+                </span>
+              </div>
+              <span className="text-xs text-slate-400 font-mono">{user.email}</span>
+            </div>
+          </div>
+          <span className="text-xs text-indigo-300 font-medium bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-xl">
+            This order will be saved to your Google account
+          </span>
+        </div>
+      ) : (
+        <div className="mb-8 p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-white">Have a Google Account?</span>
+              <span className="text-[10px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full font-medium">
+                Faster Checkout
+              </span>
+            </div>
+            <p className="text-xs text-slate-400">
+              Continue with Google to auto-sync your order, track live dispatch, and access your invoice.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={openAuthModal}
+            className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-900 rounded-xl text-xs font-bold shadow transition-all cursor-pointer"
+          >
+            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+              />
+            </svg>
+            <span>Continue with Google</span>
+          </button>
+        </div>
+      )}
+
       <form onSubmit={handlePayment} className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
         
         {/* Left Column: Delivery Form */}
@@ -277,6 +372,28 @@ export const CheckoutPage: React.FC = () => {
                   className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
+
+              <div className="sm:col-span-2 space-y-1.5">
+                <label className="text-slate-300 font-medium">
+                  Customer Email (For Tracking & Invoice) *
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  readOnly={Boolean(user?.email)}
+                  placeholder="e.g. nikhil@gmail.com"
+                  value={user?.email || address.email || ''}
+                  onChange={handleInputChange}
+                  className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 disabled:opacity-80 font-mono"
+                />
+                {user?.email && (
+                  <p className="text-[10px] text-emerald-400">
+                    Verified Google email linked to your account.
+                  </p>
+                )}
+              </div>
+
 
               <div className="space-y-1.5">
                 <label className="text-slate-300 font-medium">Mobile Phone (10 Digits) *</label>

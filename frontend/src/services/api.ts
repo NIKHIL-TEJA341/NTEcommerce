@@ -41,11 +41,19 @@ export const api = {
   },
 
   // Create checkout session / order
-  async createCheckout(payload: { items: any[]; shippingAddress: any }) {
+  async createCheckout(
+    payload: { items: any[]; shippingAddress: any; userId?: string; customerEmail?: string },
+    token?: string | null
+  ) {
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`${API_BASE_URL}/checkout`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -55,6 +63,43 @@ export const api = {
       return await res.json();
     } catch (e: any) {
       throw new Error(e.message || 'Network error during checkout');
+    }
+  },
+
+  // Fetch customer orders (isolated per account)
+  async getOrders(params?: { token?: string | null; email?: string; userId?: string }) {
+    try {
+      const headers: Record<string, string> = {};
+      if (params?.token) {
+        headers['Authorization'] = `Bearer ${params.token}`;
+      }
+
+      const queryParams = new URLSearchParams();
+      if (params?.email) queryParams.set('email', params.email);
+      if (params?.userId) queryParams.set('userId', params.userId);
+
+      const qs = queryParams.toString() ? `?${queryParams.toString()}` : '';
+      const res = await fetch(`${API_BASE_URL}/orders${qs}`, { headers });
+      if (!res.ok) throw new Error('Failed to fetch orders');
+      const data = await res.json();
+      return data.orders || [];
+    } catch (e) {
+      console.warn('Orders fetch warning:', e);
+      return [];
+    }
+  },
+
+  // Fetch single order details
+  async getOrderById(orderId: string, token?: string | null) {
+    try {
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`${API_BASE_URL}/orders/${orderId}`, { headers });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.order || null;
+    } catch {
+      return null;
     }
   },
 
@@ -88,3 +133,4 @@ export const api = {
     }
   },
 };
+

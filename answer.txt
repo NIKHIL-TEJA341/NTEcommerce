@@ -9,7 +9,28 @@ NEXUS E-COMMERCE - PENDING ACTIONS & DEPLOYMENT STATUS
 - GitHub Repository:  https://github.com/NIKHIL-TEJA341/NTEcommerce (main)
 
 
-2. PENDING TASKS / OPTIONAL POST-DEPLOY STEPS
+2. GOOGLE AUTHENTICATION CONFIGURATION (SUPABASE)
+--------------------------------------------------------------------------------
+To enable "Continue with Google" for real customer accounts:
+
+1. In Google Cloud Console (https://console.cloud.google.com/apis/credentials):
+   - Create an OAuth 2.0 Client ID (Web Application).
+   - Add Authorized redirect URI:
+     https://wacjxpjeunelkormmxvu.supabase.co/auth/v1/callback
+
+2. In Supabase Dashboard (https://supabase.com/dashboard/project/wacjxpjeunelkormmxvu):
+   - Navigate to: Authentication -> Providers -> Google.
+   - Toggle "Enable Google provider" ON.
+   - Paste your Google "Client ID" and "Client Secret".
+   - Click Save.
+
+3. Enforcement & Account Security (Already Implemented in Code):
+   - Only authentic Google accounts are accepted.
+   - Fake or dummy email forms are disabled.
+   - Customer orders are strictly isolated to their authenticated Google account.
+
+
+3. PENDING TASKS / OPTIONAL POST-DEPLOY STEPS
 --------------------------------------------------------------------------------
 [ ] Test Live Checkout on Vercel:
     1. Open https://nt-ecommerce-indol.vercel.app
